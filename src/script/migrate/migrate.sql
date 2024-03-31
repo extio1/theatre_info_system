@@ -173,39 +173,18 @@ CREATE TABLE Performances(
     CONSTRAINT premier_more_create CHECK (premier_date >= creation_date)
 )
 //
-CREATE TABLE Seating_arrangements(
-    id INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
-    name VARCHAR(255)
-)
-//
-CREATE TABLE Seating_places(
-    id INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
-    arrangement_id INT NOT NULL,
-    name VARCHAR(255),
-    price NUMERIC NOT NULL,
-
-    CHECK(price >= 0),
-    FOREIGN KEY(arrangement_id) REFERENCES Seating_arrangements(id)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE
-)
-//
 CREATE TABLE Repertoire(
     id INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
     performance_id INT NOT NULL,
     performance_date Date NOT NULL,
     ticket_sold INT NOT NULL DEFAULT 0,
     season_ticket_sold INT NOT NULL DEFAULT 0,
-    seating_scheme INT,
 
     CHECK(ticket_sold >= 0),
     CHECK(season_ticket_sold >= 0),
     FOREIGN KEY(performance_id) REFERENCES Performances(id)
         ON UPDATE CASCADE
-        ON DELETE CASCADE,
-    FOREIGN KEY(seating_scheme) REFERENCES Seating_arrangements(id)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL
+        ON DELETE CASCADE
 )
 //
 CREATE TABLE Repertoire_history(
@@ -214,16 +193,27 @@ CREATE TABLE Repertoire_history(
     performance_date Date NOT NULL,
     ticket_sold INT NOT NULL,
     season_ticket_sold INT NOT NULL,
-    seating_scheme INT NOT NULL,
 
     CHECK(ticket_sold >= 0),
     CHECK(season_ticket_sold >= 0),
-    FOREIGN KEY(seating_scheme) REFERENCES Seating_arrangements(id)
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION,
     FOREIGN KEY(performance_id) REFERENCES Performances(id)
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
+)
+//
+CREATE TABLE Prices(
+    show_id INT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    price NUMERIC NOT NULL,
+    amount INT NOT NULL DEFAULT 0,
+    bought INT NOT NULL DEFAULT 0,
+
+    CHECK(price >= 0),
+    CHECK(bought <= amount),
+    FOREIGN KEY(show_id) REFERENCES Repertoire(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+    PRIMARY KEY(show_id, name)
 )
 //
 CREATE TABLE Season_tickets(
@@ -266,4 +256,26 @@ BEFORE DELETE
 ON Repertoire FOR EACH ROW
     INSERT INTO Repertoire_history(id, performance_id, performance_date)
     VALUES(OLD.id, OLD.performance_id, OLD.performance_date);
+//
+CREATE FUNCTION get_current_repertoire_income()
+RETURNS NUMERIC
+READS SQL DATA
+BEGIN
+    DECLARE income NUMERIC;
+    SET income = 0;
+    select SUM(amount*bought) into income FROM Prices;
+    RETURN income;
+END;
+//
+CREATE PROCEDURE show_available_tickets(IN show_id INT)
+BEGIN
+    SELECT p.name, r.performance_date, CONCAT(a.name, " ", a.surname, " ", a.patronymic) AS author, g.name
+    FROM Repertoire r
+    JOIN Performances p ON r.performance_id = p.id
+    JOIN Authors a ON p.author_id = a.id
+    JOIN Genres g on p.genre_id = g.id
+    WHERE r.id = show_id;
+
+    SELECT name, price, amount, (amount- bought) AS available FROM Prices WHERE Prices.show_id = show_id;
+END;
 //
