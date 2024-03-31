@@ -14,7 +14,7 @@ try:
             cursor.execute("USE "+config["database"])
 
             with open("./script/migrate/migrate.sql", "r") as f:
-                for create_table_query in f.read().split(';'):
+                for create_table_query in f.read().split('//'):
                     print(create_table_query)
                     if len(create_table_query) > len("CREATE"):
                         cursor.execute(create_table_query)

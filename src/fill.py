@@ -12,7 +12,7 @@ try:
     ) as connection:
         with connection.cursor() as cursor:
             with open("./script/sample/"+argv[1]+".sql", "r") as f:
-                for insert_table_query in f.read().split(';'):
+                for insert_table_query in f.read().split('//'):
                     if len(insert_table_query) > len("INSERT"):
                         print(insert_table_query)
                         cursor.execute(insert_table_query)
