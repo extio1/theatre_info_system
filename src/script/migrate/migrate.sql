@@ -12,7 +12,7 @@ CREATE TABLE Employees (
 	id INT PRIMARY KEY AUTO_INCREMENT,
 	name VARCHAR(255) NOT NULL,
 	surname VARCHAR(255) NOT NULL,
-	patronymic VARCHAR(255) NOT NULL,
+	patronymic VARCHAR(255),
 	salary DECIMAL(10,3) NOT NULL,
 	hire_date Date NOT NULL,
 	birthday Date NOT NULL,
@@ -119,4 +119,83 @@ CREATE TABLE Musicians_Instruments (
     PRIMARY KEY(musician_id, instrument_id)
 );
 
+CREATE TABLE Authors(
+    id INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
+    country_id INT,
+    name VARCHAR(255) NOT NULL,
+	surname VARCHAR(255) NOT NULL,
+	patronymic VARCHAR(255),
+    birthday Date,
+    death_date Date,
 
+    FOREIGN KEY(country_id) REFERENCES Countries(id)
+	    ON UPDATE RESTRICT
+        ON DELETE SET NULL
+);
+
+CREATE TABLE Genres(
+    id INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE Performances(
+    id INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    conductor_id INT,
+    producer_id INT,
+    stage_id INT,
+    premier_date Date NOT NULL,
+    creation_date Date NOT NULL,
+    author_id INT,
+    genre_id INT,
+    target_audience ENUM('0+', '12+', '16+', '18+') NOT NULL,
+
+    FOREIGN KEY(conductor_id) REFERENCES Producers(id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+
+    FOREIGN KEY(producer_id) REFERENCES Producers(id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+
+    FOREIGN KEY(stage_id) REFERENCES Producers(id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+
+    FOREIGN KEY(author_id) REFERENCES Authors(id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+
+    FOREIGN KEY(genre_id) REFERENCES Genres(id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+
+    CONSTRAINT premier_more_create CHECK (premier_date >= creation_date)
+);
+
+CREATE TABLE Repertoire(
+    id INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
+    performance_id INT NOT NULL,
+    performance_date Date NOT NULL,
+
+    FOREIGN KEY(performance_id) REFERENCES Performances(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+);
+
+CREATE TABLE Repertoire_history(
+    id INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
+    performance_id INT,
+    performance_date Date NOT NULL,
+
+    FOREIGN KEY(performance_id) REFERENCES Performances(id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL
+);
+
+CREATE TRIGGER move_repertoire_history_on_delete
+BEFORE DELETE
+ON Repertoire
+FOR EACH ROW
+    INSERT INTO Repertoire_history(id, performance_id, performance_date)
+    VALUES(OLD.id, OLD.performance_id, OLD.performance_date);
