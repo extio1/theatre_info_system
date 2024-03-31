@@ -269,13 +269,13 @@ END;
 //
 CREATE PROCEDURE show_available_tickets(IN show_id INT)
 BEGIN
-    SELECT p.name, r.performance_date, CONCAT(a.name, " ", a.surname, " ", a.patronymic) AS author, g.name
+    SELECT p.name, r.performance_date, CONCAT(a.name, " ", a.surname, " ",  COALESCE(a.patronymic, "")) AS author, g.name
     FROM Repertoire r
     JOIN Performances p ON r.performance_id = p.id
     JOIN Authors a ON p.author_id = a.id
     JOIN Genres g on p.genre_id = g.id
     WHERE r.id = show_id;
 
-    SELECT name, price, amount, (amount- bought) AS available FROM Prices WHERE Prices.show_id = show_id;
+    SELECT name, price, amount, (amount-bought) AS available FROM Prices WHERE Prices.show_id = show_id;
 END;
 //
