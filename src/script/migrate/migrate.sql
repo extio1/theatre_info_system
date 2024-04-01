@@ -254,8 +254,8 @@ END;
 CREATE TRIGGER move_repertoire_history_on_delete
 BEFORE DELETE
 ON Repertoire FOR EACH ROW
-    INSERT INTO Repertoire_history(id, performance_id, performance_date)
-    VALUES(OLD.id, OLD.performance_id, OLD.performance_date);
+    INSERT INTO Repertoire_history(id, performance_id, performance_date, ticket_sold, season_ticket_sold)
+    VALUES(OLD.id, OLD.performance_id, OLD.performance_date, OLD.ticket_sold, OLD.season_ticket_sold);
 //
 CREATE FUNCTION get_current_repertoire_income()
 RETURNS NUMERIC
@@ -263,7 +263,9 @@ READS SQL DATA
 BEGIN
     DECLARE income NUMERIC;
     SET income = 0;
-    select SUM(amount*bought) into income FROM Prices;
+    SELECT SUM(p.price*p.bought) into income
+    FROM Repertoire r
+    JOIN Prices p ON p.show_id = r.id;
     RETURN income;
 END;
 //
