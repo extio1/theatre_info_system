@@ -41,8 +41,8 @@ class DatabaseApp:
         password = self.password_entry.get()
 
         try:
-            # self.connection = connect(host=host, user=login, password=password)
-            self.connection = connect(host=host, user='root', password='123321')
+            self.connection = connect(host=host, user=login, password=password)
+            # self.connection = connect(host=host, user='root', password='123321')
             self.cursor = self.connection.cursor()
             self.cursor.execute("USE " + config["database"])
 
