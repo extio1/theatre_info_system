@@ -5,7 +5,7 @@
 # Usage
 ```shell
 git clone https://github.com/extio1/theatre_info_system.git
-cd theatre_info_system
+cd theatre_info_system/src
 python3 migrate.py
 python3 fill.py 1
 python3 graphics.py
