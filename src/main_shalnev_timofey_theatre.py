@@ -1,7 +1,8 @@
 import tkinter as tk
-from mysql.connector import connect, Error
+from mysql.connector import connect, Error, errors, errorcode
 from tkinter import messagebox
 from tkinter import ttk
+import datetime
 
 migrate_string = """CREATE TABLE Countries (
 	id INT PRIMARY KEY AUTO_INCREMENT,
@@ -14,13 +15,13 @@ CREATE TABLE Education_Institution (
 )
 //
 CREATE TABLE Employees (
-	id INT PRIMARY KEY AUTO_INCREMENT,
-	name VARCHAR(255) NOT NULL,
-	surname VARCHAR(255) NOT NULL,
-	patronymic VARCHAR(255),
-	salary DECIMAL(10,3) NOT NULL,
-	hire_date Date NOT NULL,
-	birthday Date NOT NULL,
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        name VARCHAR(255) NOT NULL,
+        surname VARCHAR(255) NOT NULL,
+        patronymic VARCHAR(255),
+        salary DECIMAL(10,3) NOT NULL,
+        hire_date Date NOT NULL,
+        birthday Date NOT NULL,
     CONSTRAINT salary_more_zero CHECK (salary >= 0),
     CONSTRAINT hire_more_birth CHECK (hire_date >= birthday)
 )
@@ -276,16 +277,211 @@ END;
 //
 CREATE PROCEDURE show_available_tickets(IN show_id INT)
 BEGIN
-    SELECT p.name, r.performance_date, CONCAT(a.name, " ", a.surname, " ",  COALESCE(a.patronymic, "")) AS author, g.name
+    SELECT name, price, amount, (amount-bought) AS available FROM Prices WHERE Prices.show_id = show_id;
+END;
+//
+CREATE VIEW Repertoire_info_view AS
+SELECT r.id, p.name, r.performance_date, CONCAT(a.name, " ", a.surname, " ",  COALESCE(a.patronymic, "")) AS author, 
+       g.name AS genre
     FROM Repertoire r
     JOIN Performances p ON r.performance_id = p.id
     JOIN Authors a ON p.author_id = a.id
-    JOIN Genres g on p.genre_id = g.id
-    WHERE r.id = show_id;
-
-    SELECT name, price, amount, (amount-bought) AS available FROM Prices WHERE Prices.show_id = show_id;
+    JOIN Genres g on p.genre_id = g.id;
+//    
+CREATE PROCEDURE buy_ticket(IN buy_show INT, IN buy_place VARCHAR(255), IN buy_amount INT)
+BEGIN
+    DECLARE available_tickets INT;
+    
+    SELECT amount - bought INTO available_tickets
+    FROM Prices
+    WHERE show_id = buy_show AND name = buy_place;
+    
+    IF available_tickets >= buy_amount THEN
+        UPDATE Prices
+        SET bought = bought + buy_amount
+        WHERE show_id = buy_show AND name = buy_place;
+    ELSE
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT='Указанное число билетов для покупки больше числа доступных для покупки';
+    END IF;    
 END;
-//"""
+//
+CREATE VIEW Actors_private_view 
+AS 
+    SELECT a.height, a.weight, c.name AS country_name, a.voice, 
+           CONCAT(e.name, " ", e.surname, " ",  COALESCE(e.patronymic, "")) AS actor_name, 
+           e.salary, e.hire_date, e.birthday, ti.title_name, aw.award_name, 
+           aw.competition_name, e.id
+    FROM Actors a 
+    LEFT JOIN Employees e ON a.id = e.id 
+    LEFT JOIN Countries c ON a.country_id = c.id 
+    LEFT JOIN Awards aw ON e.id = aw.employee_id 
+    LEFT JOIN Titles ti ON e.id = ti.employee_id;
+//
+CREATE VIEW Actors_public_view 
+AS 
+    SELECT a.height, a.weight, c.name AS country_name, a.voice, 
+           CONCAT(e.name, " ", e.surname, " ",  COALESCE(e.patronymic, "")) AS actor_name, 
+           ti.title_name, aw.award_name, 
+           aw.competition_name, e.id 
+    FROM Actors a 
+    LEFT JOIN Employees e ON a.id = e.id 
+    LEFT JOIN Countries c ON a.country_id = c.id 
+    LEFT JOIN Awards aw ON e.id = aw.employee_id 
+    LEFT JOIN Titles ti ON e.id = ti.employee_id;
+//
+CREATE VIEW Musicians_private_view 
+AS 
+    SELECT CONCAT(e.name, " ", e.surname, " ",  COALESCE(e.patronymic, "")) AS musician_name, 
+           i.name AS musical_instruments,
+           ti.title_name,
+           e.salary, e.hire_date, e.birthday, aw.award_name, aw.competition_name, e.id 
+    FROM Musicians m 
+    JOIN Employees e ON m.id = e.id 
+    LEFT JOIN Awards aw ON e.id = aw.employee_id 
+    LEFT JOIN Titles ti ON e.id = ti.employee_id
+    LEFT JOIN Musicians_Instruments mi ON e.id = mi.musician_id
+    LEFT JOIN Instruments i ON mi.instrument_id = i.id;
+//
+CREATE VIEW Musicians_public_view 
+AS 
+    SELECT CONCAT(e.name, " ", e.surname, " ",  COALESCE(e.patronymic, "")) AS musician_name, 
+           i.name AS musical_instruments,
+           ti.title_name, aw.award_name, aw.competition_name, e.id 
+    FROM Musicians m 
+    JOIN Employees e ON m.id = e.id 
+    LEFT JOIN Awards aw ON e.id = aw.employee_id 
+    LEFT JOIN Titles ti ON e.id = ti.employee_id
+    LEFT JOIN Musicians_Instruments mi ON e.id = mi.musician_id
+    LEFT JOIN Instruments i ON mi.instrument_id = i.id;
+//
+CREATE VIEW Producers_private_view 
+AS 
+    SELECT CONCAT(e.name, " ", e.surname, " ",  COALESCE(e.patronymic, "")) AS producer_name, 
+           ti.title_name, aw.award_name, 
+           e.salary, e.hire_date, e.birthday, aw.competition_name, e.id 
+    FROM Producers p 
+    JOIN Employees e ON p.id = e.id 
+    LEFT JOIN Awards aw ON e.id = aw.employee_id 
+    LEFT JOIN Titles ti ON e.id = ti.employee_id;
+//
+CREATE VIEW Producers_public_view  
+AS 
+    SELECT CONCAT(e.name, " ", e.surname, " ",  COALESCE(e.patronymic, "")) AS producer_name, 
+           ti.title_name, aw.award_name, aw.competition_name, e.id 
+    FROM Producers p 
+    JOIN Employees e ON p.id = e.id 
+    LEFT JOIN Awards aw ON e.id = aw.employee_id 
+    LEFT JOIN Titles ti ON e.id = ti.employee_id;
+//
+CREATE VIEW Workers_private_view 
+AS 
+    SELECT CONCAT(e.name, " ", e.surname, " ",  COALESCE(e.patronymic, "")) AS worker_name,
+    e.salary, e.hire_date, e.birthday,
+    CONCAT(IF(a.id IS NULL, '', 'актёр '), 
+           IF(m.id IS NULL, '', 'музыкант '),
+           IF(p.id IS NULL, '', 'продюссер'),
+           IF(p.id IS NULL AND m.id IS NULL AND a.id IS NULL, 'служащий', '')
+           ) AS title, e.id
+    FROM Employees e
+    LEFT JOIN Actors a ON e.id = a.id  
+    LEFT JOIN Musicians m ON e.id = m.id
+    LEFT JOIN Producers p ON e.id = p.id;
+//
+CREATE VIEW Workers_public_view 
+AS 
+    SELECT CONCAT(e.name, " ", e.surname, " ",  COALESCE(e.patronymic, "")) AS worker_name,
+    CONCAT(IF(a.id IS NULL, '', 'актёр '), 
+           IF(m.id IS NULL, '', 'музыкант '),
+           IF(p.id IS NULL, '', 'продюссер'),
+           IF(p.id IS NULL AND m.id IS NULL AND a.id IS NULL, 'служащий', '')
+           ) AS title, e.id
+    FROM Employees e
+    LEFT JOIN Actors a ON e.id = a.id  
+    LEFT JOIN Musicians m ON e.id = m.id
+    LEFT JOIN Producers p ON e.id = p.id;
+//
+CREATE PROCEDURE CreateEmployee(
+    IN full_name VARCHAR(1024),
+    IN salary NUMERIC,
+    IN hire_date DATE,
+    IN birthday DATE,
+    OUT id INT
+    )
+BEGIN
+    INSERT INTO Employees(id, surname, name, patronymic, salary, hire_date, birthday)
+    VALUES
+    (
+    NULL,
+    SUBSTRING_INDEX(full_name, ' ', 1),
+    SUBSTRING_INDEX(SUBSTRING_INDEX(full_name, ' ', 2), ' ', -1),
+    SUBSTRING_INDEX(SUBSTRING_INDEX(full_name, ' ', 3), ' ', -1),
+    salary,
+    hire_date,
+    birthday
+    );  
+    SELECT LAST_INSERT_ID() INTO id;
+END;
+//
+CREATE PROCEDURE InsertIntoProducers_private_view(
+    IN full_name VARCHAR(1024),
+    IN salary NUMERIC,
+    IN hire_date DATE,
+    IN birthday DATE
+    )
+BEGIN
+    DECLARE x INT;
+    CALL CreateEmployee(full_name, salary, hire_date, birthday, x);
+    INSERT INTO Producers() VALUES (x); 
+END;
+//
+CREATE PROCEDURE InsertIntoMusicians_private_view(
+    IN full_name VARCHAR(1024),
+    IN salary NUMERIC,
+    IN hire_date DATE,
+    IN birthday DATE
+    )
+BEGIN
+    DECLARE x INT;
+    CALL CreateEmployee(full_name, salary, hire_date, birthday, x);
+    INSERT INTO Musicians() VALUES (x); 
+END;
+//
+CREATE PROCEDURE InsertIntoActors_private_view(
+    IN full_name VARCHAR(1024),
+    IN salary NUMERIC,
+    IN hire_date DATE,
+    IN birthday DATE,
+    IN height INT,
+    IN weight INT,
+    IN voice ENUM('бас', 'баритон', 'тенор', 'альт', 'меццо-сопрано', 'сопрано'),
+    IN sex ENUM('мужской', 'женский'),
+    IN country_name VARCHAR(255)
+    )
+BEGIN
+    DECLARE id INT;
+    DECLARE country_id INT;
+    
+    CALL CreateEmployee(full_name, salary, hire_date, birthday, id);
+    
+    SELECT c.id INTO country_id FROM Countries c WHERE c.name = country_name;
+
+    INSERT INTO Actors(id, height, weight, voice, sex, country_id)
+    VALUES (id, height, weight, voice, sex, country_id);
+END;
+//
+CREATE PROCEDURE InsertIntoWorkers_private_view(
+    IN full_name VARCHAR(1024),
+    IN salary NUMERIC,
+    IN hire_date DATE,
+    IN birthday DATE
+    )
+BEGIN
+    DECLARE x INT;
+    CALL CreateEmployee(full_name, salary, hire_date, birthday, x);
+END;
+//
+"""
 
 fill_string = """
 INSERT INTO Countries (id,name) VALUES
@@ -452,74 +648,269 @@ config = {
     "database": "theatre"
 }
 
+
 class UserInterface:
-    pass
-
-class VisitorInterface(UserInterface):
-
-class DatabaseApp:
-    def __init__(self):
-        self.user_interface = None
-
-        self.root = tk.Tk()
-        self.connection = None
-        self.cursor = None
-
-        self.root.title("Информационная система театра")
-        self.root.geometry("800x600")
-        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-
-        tk.Label(self.root, text="Авторизация").pack()
-
-        tk.Label(self.root, text="Имя хоста базы данных:").pack()
-        self.host_entry = tk.Entry(self.root)
-        self.host_entry.insert(0, config['host'])
-        self.host_entry.pack()
-
-        tk.Label(self.root, text="Логин:").pack()
-        self.login_entry = tk.Entry(self.root)
-        self.login_entry.pack()
-
-        tk.Label(self.root, text="Пароль:").pack()
-        self.password_entry = tk.Entry(self.root, show='*')
-        self.password_entry.pack()
-
-        tk.Label(self.root, text="Роль:").pack()
-        self.role_combobox = ttk.Combobox(self.root, values=["Посетитель", "Директор"])
-        self.role_combobox.pack()
-
-        tk.Button(self.root, text="Вход", command=self.auth_to_database).pack()
-
-        self.root.mainloop()
-
-    def auth_to_database(self):
-        host = self.host_entry.get()
-        login = self.login_entry.get()
-        password = self.password_entry.get()
-
-        try:
-            self.connection = connect(host=host, user=login, password=password)
-            self.cursor = self.connection.cursor()
-            self.cursor.execute("USE " + config["database"])
-
-            self.show_main_menu()
-        except Error as e:
-            messagebox.showerror("Ошибка во время авторизации", e.msg)
+    def __init__(self, root, connection):
+        self.connection = connection
+        self.root = root
+        self.cursor = self.connection.cursor()
+        self.main_menu()
 
     def clear_window(self):
         for widget in self.root.winfo_children():
             widget.destroy()
 
-    def on_closing(self):
-        if tk.messagebox.askokcancel("Выход", "Вы уверены, что хотите выйти?"):
+    def main_menu(self):
+        self.clear_window()
+
+
+class VisitorInterface(UserInterface):
+    def __init__(self, root, connection):
+        super().__init__(root, connection)
+        self.employee_view = {'Продюссер': 'Producers_public_view',
+                              'Актёр': 'Actors_public_view',
+                              'Музыкант': 'Musicians_public_view',
+                              }
+        self.employee_tree = None
+
+    def main_menu(self):
+        def get_performance_info():
+            def refresh_info(pp):
+                for widget in pp.winfo_children():
+                    widget.destroy()
+
+                selected_show = shows[show_combobox.current()]
+
+                self.cursor.execute("call show_available_tickets(" + str(selected_show[0]) + ")")
+                prices = self.cursor.fetchall()
+
+                pp.title("Информация о выступлении")
+                pp.geometry("800x300")
+                tk.Label(pp, text="Спектакль: \"" + selected_show[1] + "\"").grid(row=0, column=0)
+                tk.Label(pp, text="Дата: \"" + selected_show[2].strftime("%d/%m/%Y") + "\"").grid(row=1, column=0)
+                tk.Label(pp, text="Автор: \"" + selected_show[3] + "\"").grid(row=2, column=0)
+                tk.Label(pp, text="Жанр: \"" + selected_show[4] + "\"").grid(row=3, column=0)
+                tk.Label(pp, text="Место:").grid(row=4, column=0)
+                tk.Label(pp, text="Цена:").grid(row=4, column=1)
+                tk.Label(pp, text="Всего билетов:").grid(row=4, column=2)
+                tk.Label(pp, text="Свободно билетов:").grid(row=4, column=3)
+
+                place_box = ttk.Combobox(pp, values=[p[0] for p in prices])
+                place_box.grid(row=5 + len(prices), column=1)
+                amount_entry = tk.Entry(pp)
+                amount_entry.grid(row=5 + len(prices), column=2)
+
+                (tk.Button(
+                    pp,
+                    text='Купить',
+                    command=lambda p=place_box, a=amount_entry: buy_ticket(pp, selected_show[0], p, a)
+                ).grid(row=5 + len(prices), column=0))
+
+                for m in range(len(prices)):
+                    for k in range(0, len(prices[m])):
+                        tk.Label(pp, text=prices[m][k]).grid(row=5 + m, column=k)
+
+                try:
+                    self.cursor.nextset()  # иначе command out of sync
+                except Error:
+                    pass
+
+            def buy_ticket(pp, show_id, place_box, amount_entry):
+                try:
+                    self.cursor.callproc('buy_ticket', [show_id, place_box.get(), amount_entry.get()])
+                    messagebox.showinfo("Покупка", "Операция прошла успешно", parent=pp)
+                    self.connection.commit()
+                    refresh_info(pp)
+                except errors.DatabaseError as err:
+                    if err.errno == errorcode.ER_SIGNAL_EXCEPTION:
+                        messagebox.showerror("Ошибка",
+                                             "Произошла ошибка:" + str(err),
+                                             parent=pp)
+
+            def search():
+                try:
+                    pp = tk.Toplevel(self.root)
+                    pp.geometry("800x300")
+                    refresh_info(pp)
+                except Error as e:
+                    messagebox.showerror("Ошибка", e.msg, parent=pp)
+
+            popup = tk.Toplevel(self.root)
+            popup.title("Информация о выступлении")
+            popup.geometry("400x200")
+
+            tk.Label(popup, text="Выберите название интерусующего выступления:").pack()
+            self.cursor.execute("SELECT * FROM Repertoire_info_view")
+            shows = self.cursor.fetchall()
+            show_combobox = ttk.Combobox(popup, values=[show[1] for show in shows])
+            show_combobox.pack()
+
+            tk.Button(popup, text="Поиск", command=search).pack()
+            tk.Button(popup, text="Выход", command=popup.destroy).pack()
+
+        def get_employees_info():
+            def refresh_employee_tree(e):
+                if self.employee_tree:
+                    self.employee_tree.destroy()
+
+                employee_type = employee_box.get()
+                self.cursor.execute("SHOW COLUMNS FROM " + self.employee_view[employee_type])
+                view_columns = self.cursor.fetchall()
+
+                self.employee_tree = ttk.Treeview(self.root, columns=[c[0] for c in view_columns], show="headings")
+
+                for c in view_columns:
+                    self.employee_tree.heading(c[0], text=c[0])
+                self.employee_tree.grid(row=2, column=0, columnspan=len(view_columns))
+
+                self.cursor.execute("SELECT * FROM " + self.employee_view[employee_type])
+                data_employees = self.cursor.fetchall()
+                for row in data_employees:
+                    self.employee_tree.insert("", "end", values=row)
+
+            self.clear_window()
+            (tk.Button(self.root, text="В главное меню", command=self.main_menu)
+             .grid(row=0, column=3))
+
+            employee_box = ttk.Combobox(self.root, values=list(self.employee_view.keys()))
+            employee_box.bind("<<ComboboxSelected>>", refresh_employee_tree)
+            employee_box.grid(row=1, column=0)
+
+        super().main_menu()
+
+        (tk.Label(self.root, text="Функции и процедуры")
+         .grid(row=1, column=0))
+
+        (tk.Button(self.root, text="Получить информацию о выступлении и купить билет",
+                   command=get_performance_info)
+         .grid(row=2, column=0))
+        (tk.Button(self.root, text="Актеры, музыканты и продюссеры театра",
+                   command=get_employees_info)
+         .grid(row=3, column=0))
+
+
+class DirectorInterface(UserInterface):
+    def __init__(self, root, connection):
+        super().__init__(root, connection)
+        self.entries = None
+        self.employee_tree = None
+        self.refresh_gui_item = []
+        self.employee_view = {'Рабочий': 'Workers_private_view',
+                              'Продюссер': 'Producers_private_view',
+                              'Актёр': 'Actors_private_view',
+                              'Музыкант': 'Musicians_private_view',
+                              }
+
+        self.employee_entries = {
+            'Рабочий': ['ФИО (отчество, если есть)*', 'Зарплата*', 'Дата начала работы*', 'День рождения*'],
+            'Продюссер': ['ФИО (отчество, если есть)*', 'Зарплата*', 'Дата начала работы*', 'День рождения*'],
+            'Музыкант': ['ФИО (отчество, если есть)*', 'Зарплата*', 'Дата начала работы*', 'День рождения*'],
+            'Актёр': ['ФИО (отчество, если есть)*', 'Зарплата*', 'Дата начала работы*', 'День рождения*',
+                      'Рост*', 'Вес*', 'Тембр голоса*', 'Пол*', 'Национальность']
+        }
+
+    def main_menu(self):
+        def get_repertoire_income():
             try:
-                self.connection.close()
+                self.cursor.execute("select get_current_repertoire_income()")
+                data = self.cursor.fetchall()
+                messagebox.showinfo(title="Доход", message=data)
             except Error as e:
-                print("Ошибка разрыва соединения", e.msg)
+                messagebox.showerror("Ошибка", e.msg)
 
-            self.root.destroy()
+        def employees_menu():
+            def fire_employee():
+                yes = messagebox.askyesno(title="Увольнение",
+                                          message="Вы действительно хотите уволить " +
+                                                  str(self.employee_tree.item(self.employee_tree.selection())['values'][
+                                                          0] + "?")
+                                          )
 
-    def show_main_menu(self):
+                if yes:
+                    try:
+                        e_id = self.employee_tree.item(self.employee_tree.selection())['values'][-1]
+                        self.cursor.execute("DELETE FROM Employees WHERE id=" + str(e_id))
+                        self.connection.commit()
+                        refresh_employee_tree(None)
+                    except Error as e:
+                        messagebox.showerror("Ошибка", e.msg)
+
+            def hire_employee():
+                try:
+                    self.cursor.callproc(
+                        "InsertInto" + self.employee_view[employee_box.get()],
+                        [e.get() for e in self.entries]
+                    )
+                    self.connection.commit()
+                    refresh_employee_tree(None)
+                except Error as e:
+                    messagebox.showerror("Ошибка", e.msg)
+
+            def refresh_employee_tree(event):
+                def add_refreshable_item(item, row, col):
+                    item.grid(row=row, column=col)
+                    self.refresh_gui_item.append(item)
+                    return item
+
+                if len(self.refresh_gui_item):
+                    for i in self.refresh_gui_item:
+                        i.destroy()
+
+                employee_type = employee_box.get()
+                self.cursor.execute("SHOW COLUMNS FROM " + self.employee_view[employee_type])
+                view_columns = self.cursor.fetchall()
+                self.employee_tree = ttk.Treeview(self.root, columns=[c[0] for c in view_columns], show="headings")
+                self.refresh_gui_item.append(self.employee_tree)
+
+                for c in view_columns:
+                    self.employee_tree.heading(c[0], text=c[0])
+                self.employee_tree.grid(row=2, column=0, columnspan=len(view_columns))
+
+                self.cursor.execute("SELECT * FROM " + self.employee_view[employee_type])
+                data_employees = self.cursor.fetchall()
+                for row in data_employees:
+                    self.employee_tree.insert("", "end", values=row)
+
+                self.entries = []
+                ROW = 3
+                add_refreshable_item(tk.Label(self.root, text='Нанять ' + employee_type), ROW, 0)
+
+                entries_text = self.employee_entries[employee_type]
+                for i in range(len(entries_text)):
+                    add_refreshable_item(tk.Label(self.root, text=entries_text[i]), ROW + i + 1, 0)
+                    entry = add_refreshable_item(tk.Entry(self.root), ROW + i + 2, 0)
+                    self.entries.append(entry)
+                    ROW += 2
+
+                    if entries_text[i] == 'Дата начала работы*':
+                        entry.insert(0, str(datetime.date.today()))
+
+                add_refreshable_item(tk.Button(self.root, text='Нанять', command=hire_employee),
+                                     ROW + len(view_columns) + 1, 0)
+                add_refreshable_item(tk.Button(self.root, text='Уволить', command=fire_employee), 3, 2)
+
+            self.clear_window()
+            (tk.Button(self.root, text="В главное меню", command=self.main_menu)
+             .grid(row=0, column=3))
+
+            employee_box = ttk.Combobox(self.root, values=list(self.employee_view.keys()))
+            employee_box.bind("<<ComboboxSelected>>", refresh_employee_tree)
+            employee_box.grid(row=1, column=0)
+
+        super().main_menu()
+
+        (tk.Button(self.root, text="Доход за текущий сезон", command=get_repertoire_income)
+         .grid(row=1, column=1))
+
+        (tk.Button(self.root, text="Меню управления подчиненными", command=employees_menu)
+         .grid(row=2, column=1))
+
+
+class AdministratorInterface(UserInterface):
+    def __init__(self, root, connection):
+        super().__init__(root, connection)
+
+    def main_menu(self):
         def migrate():
             from mysql.connector import Error
             try:
@@ -536,7 +927,7 @@ class DatabaseApp:
 
                 messagebox.showinfo(title="Success", message="Success")
             except Error as e:
-                messagebox.showerror(e.msg)
+                messagebox.showerror(message=e.msg)
 
         def fill():
             from mysql.connector import Error
@@ -552,56 +943,8 @@ class DatabaseApp:
             except Error as e:
                 messagebox.showerror(e.msg)
 
-        def get_repertoire_income():
-            try:
-                self.cursor.execute("select get_current_repertoire_income()")
-                data = self.cursor.fetchall()
-                messagebox.showinfo(title="Доход", message=data)
-            except Error as e:
-                messagebox.showerror("Ошибка", e.msg)
+        super().main_menu()
 
-        def get_performance_info():
-            def search():
-                try:
-                    self.cursor.execute("call show_available_tickets(" + id_entry.get() + ")")
-                    show = self.cursor.fetchall()
-                    show = show[0]
-                    self.cursor.nextset()
-                    prices = self.cursor.fetchall()
-
-                    pp = tk.Toplevel(self.root)
-                    pp.title("Информация о выступлении")
-                    pp.geometry("800x300")
-                    tk.Label(pp, text="Спектакль: \"" + show[0] + "\"").grid(row=0, column=0)
-                    tk.Label(pp, text="Дата: \"" + show[1].strftime("%d/%m/%Y") + "\"").grid(row=1, column=0)
-                    tk.Label(pp, text="Автор: \"" + show[2] + "\"").grid(row=2, column=0)
-                    tk.Label(pp, text="Жанр: \"" + show[3] + "\"").grid(row=3, column=0)
-                    tk.Label(pp, text="Место:").grid(row=4, column=0)
-                    tk.Label(pp, text="Цена:").grid(row=4, column=1)
-                    tk.Label(pp, text="Всего билетов:").grid(row=4, column=2)
-                    tk.Label(pp, text="Свободно билетов:").grid(row=4, column=3)
-
-                    for m in range(len(prices)):
-                        for k in range(0, len(prices[m])):
-                            tk.Label(pp, text=prices[m][k]).grid(row=5 + m, column=k)
-
-                    try:
-                        self.cursor.nextset()  # иначе пишет command out of sync, не понимаю почему
-                    except Error:
-                        pass
-                except Error as e:
-                    messagebox.showerror("Ошибка", e.msg)
-
-            popup = tk.Toplevel(self.root)
-            popup.title("Информация о выступлении")
-            popup.geometry("400x200")
-            tk.Label(popup, text="Введите ИД интересующего выступления").pack()
-            id_entry = tk.Entry(popup)
-            id_entry.pack()
-            tk.Button(popup, text="Поиск", command=search).pack()
-            tk.Button(popup, text="Выход", command=popup.destroy).pack()
-
-        self.clear_window()
         (tk.Label(self.root, text="Выберите таблицу для взаимодействия")
          .grid(row=0, column=1, padx=5, pady=5))
 
@@ -619,11 +962,6 @@ class DatabaseApp:
 
         (tk.Label(self.root, text="Функции и процедуры")
          .grid(row=N_ROWS + 1, column=0))
-        (tk.Button(self.root, text="Доход за текущий сезон", command=get_repertoire_income)
-         .grid(row=N_ROWS + 2, column=0))
-        (tk.Button(self.root, text="Получить информацию о выступлении", command=get_performance_info)
-         .grid(row=N_ROWS + 2, column=1))
-
         (tk.Label(self.root, text="Управление базой данных")
          .grid(row=N_ROWS + 3, column=0))
         (tk.Button(self.root, text="Выполнить миграцию", command=migrate)
@@ -679,7 +1017,7 @@ class DatabaseApp:
             for col in table_info:
                 table_info_str += col[0] + "; "
 
-            (tk.Button(self.root, text="В главное меню", command=self.show_main_menu)
+            (tk.Button(self.root, text="В главное меню", command=self.main_menu)
              .grid(row=0, column=2, sticky='e'))
             (tk.Label(self.root, text=table_name + ": " + table_info_str)
              .grid(row=0, column=0))
@@ -705,6 +1043,78 @@ class DatabaseApp:
 
         except Error as e:
             messagebox.showerror("Ошибка", e.msg)
+
+
+view_class = {'Посетитель': VisitorInterface,
+              'Директор': DirectorInterface,
+              'Администратор БД': AdministratorInterface
+              }
+
+
+class DatabaseApp:
+    def __init__(self):
+        self.user_interface = None
+
+        self.root = tk.Tk()
+        self.connection = None
+
+        self.root.title("Информационная система театра")
+        self.root.geometry("800x600")
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+        tk.Label(self.root, text="Авторизация").pack()
+
+        tk.Label(self.root, text="Имя хоста базы данных:").pack()
+        self.host_entry = tk.Entry(self.root)
+        self.host_entry.insert(0, config['host'])
+        self.host_entry.pack()
+
+        tk.Label(self.root, text="Логин:").pack()
+        self.login_entry = tk.Entry(self.root)
+        self.login_entry.pack()
+
+        tk.Label(self.root, text="Пароль:").pack()
+        self.password_entry = tk.Entry(self.root, show='*')
+        self.password_entry.pack()
+
+        tk.Label(self.root, text="Роль:").pack()
+        self.role_combobox = ttk.Combobox(self.root, values=list(view_class.keys()))
+        self.role_combobox.pack()
+
+        tk.Button(self.root, text="Вход", command=self.auth_to_database).pack()
+
+        self.root.mainloop()
+
+    def auth_to_database(self):
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # host = self.host_entry.get()
+        # login = self.login_entry.get()
+        # password = self.password_entry.get()
+        host = '127.0.0.1'
+        login = 'root'
+        password = '123321'
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        try:
+            self.connection = connect(host=host, user=login, password=password)
+            self.cursor = self.connection.cursor()
+            self.cursor.execute("USE " + config["database"])
+        except Error as e:
+            messagebox.showerror("Ошибка во время авторизации", e.msg)
+
+        self.create_view()
+
+    def create_view(self):
+        view = self.role_combobox.get()
+        view_class[view](self.root, self.connection)
+
+    def on_closing(self):
+        if tk.messagebox.askokcancel("Выход", "Вы уверены, что хотите выйти?"):
+            try:
+                self.connection.close()
+            except Error as e:
+                print("Ошибка разрыва соединения", e.msg)
+
+            self.root.destroy()
 
 
 def main():
