@@ -308,8 +308,8 @@ END;
 //
 CREATE VIEW Actors_private_view 
 AS 
-    SELECT a.height, a.weight, c.name AS country_name, a.voice, 
-           CONCAT(e.name, " ", e.surname, " ",  COALESCE(e.patronymic, "")) AS actor_name, 
+    SELECT CONCAT(e.name, " ", e.surname, " ",  COALESCE(e.patronymic, "")) AS actor_name,  
+           a.height, a.weight, c.name AS country_name, a.voice, 
            e.salary, e.hire_date, e.birthday, ti.title_name, aw.award_name, 
            aw.competition_name, e.id
     FROM Actors a 
@@ -320,8 +320,8 @@ AS
 //
 CREATE VIEW Actors_public_view 
 AS 
-    SELECT a.height, a.weight, c.name AS country_name, a.voice, 
-           CONCAT(e.name, " ", e.surname, " ",  COALESCE(e.patronymic, "")) AS actor_name, 
+    SELECT CONCAT(e.name, " ", e.surname, " ",  COALESCE(e.patronymic, "")) AS actor_name, 
+           a.height, a.weight, c.name AS country_name, a.voice, 
            ti.title_name, aw.award_name, 
            aw.competition_name, e.id 
     FROM Actors a 
@@ -823,7 +823,7 @@ class DirectorInterface(UserInterface):
                 yes = messagebox.askyesno(title="Увольнение",
                                           message="Вы действительно хотите уволить " +
                                                   str(self.employee_tree.item(self.employee_tree.selection())['values'][
-                                                          0] + "?")
+                                                          0]) + "?"
                                           )
 
                 if yes:
@@ -1087,12 +1087,12 @@ class DatabaseApp:
 
     def auth_to_database(self):
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        # host = self.host_entry.get()
-        # login = self.login_entry.get()
-        # password = self.password_entry.get()
-        host = '127.0.0.1'
-        login = 'root'
-        password = '123321'
+        host = self.host_entry.get()
+        login = self.login_entry.get()
+        password = self.password_entry.get()
+        # host = '127.0.0.1'
+        # login = 'root'
+        # password = '123321'
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         try:
             self.connection = connect(host=host, user=login, password=password)
