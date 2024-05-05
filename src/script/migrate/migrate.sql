@@ -9,13 +9,13 @@ CREATE TABLE Education_Institution (
 )
 //
 CREATE TABLE Employees (
-	id INT PRIMARY KEY AUTO_INCREMENT,
-	name VARCHAR(255) NOT NULL,
-	surname VARCHAR(255) NOT NULL,
-	patronymic VARCHAR(255),
-	salary DECIMAL(10,3) NOT NULL,
-	hire_date Date NOT NULL,
-	birthday Date NOT NULL,
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        name VARCHAR(255) NOT NULL,
+        surname VARCHAR(255) NOT NULL,
+        patronymic VARCHAR(255),
+        salary DECIMAL(10,3) NOT NULL,
+        hire_date Date NOT NULL,
+        birthday Date NOT NULL,
     CONSTRAINT salary_more_zero CHECK (salary >= 0),
     CONSTRAINT hire_more_birth CHECK (hire_date >= birthday)
 )
@@ -271,13 +271,231 @@ END;
 //
 CREATE PROCEDURE show_available_tickets(IN show_id INT)
 BEGIN
-    SELECT p.name, r.performance_date, CONCAT(a.name, " ", a.surname, " ",  COALESCE(a.patronymic, "")) AS author, g.name
+    SELECT name, price, amount, (amount-bought) AS available FROM Prices WHERE Prices.show_id = show_id;
+END;
+//
+CREATE VIEW Repertoire_info_view AS
+SELECT r.id, p.name, r.performance_date, CONCAT(a.name, " ", a.surname, " ",  COALESCE(a.patronymic, "")) AS author,
+       g.name AS genre
     FROM Repertoire r
     JOIN Performances p ON r.performance_id = p.id
     JOIN Authors a ON p.author_id = a.id
-    JOIN Genres g on p.genre_id = g.id
-    WHERE r.id = show_id;
+    JOIN Genres g on p.genre_id = g.id;
+//
+CREATE PROCEDURE buy_ticket(IN buy_show INT, IN buy_place VARCHAR(255), IN buy_amount INT)
+BEGIN
+    DECLARE available_tickets INT;
 
-    SELECT name, price, amount, (amount-bought) AS available FROM Prices WHERE Prices.show_id = show_id;
+    SELECT amount - bought INTO available_tickets
+    FROM Prices
+    WHERE show_id = buy_show AND name = buy_place;
+
+    IF available_tickets >= buy_amount THEN
+        UPDATE Prices
+        SET bought = bought + buy_amount
+        WHERE show_id = buy_show AND name = buy_place;
+    ELSE
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT='Указанное число билетов для покупки больше числа доступных для покупки';
+    END IF;
 END;
+//
+CREATE VIEW Actors_private_view
+AS
+    SELECT CONCAT(e.name, " ", e.surname, " ",  COALESCE(e.patronymic, "")) AS actor_name,
+           a.height, a.weight, c.name AS country_name, a.voice,
+           e.salary, e.hire_date, e.birthday, ti.title_name, aw.award_name,
+           aw.competition_name, e.id
+    FROM Actors a
+    LEFT JOIN Employees e ON a.id = e.id
+    LEFT JOIN Countries c ON a.country_id = c.id
+    LEFT JOIN Awards aw ON e.id = aw.employee_id
+    LEFT JOIN Titles ti ON e.id = ti.employee_id;
+//
+CREATE VIEW Actors_public_view
+AS
+    SELECT CONCAT(e.name, " ", e.surname, " ",  COALESCE(e.patronymic, "")) AS actor_name,
+           a.height, a.weight, c.name AS country_name, a.voice,
+           ti.title_name, aw.award_name,
+           aw.competition_name, e.id
+    FROM Actors a
+    LEFT JOIN Employees e ON a.id = e.id
+    LEFT JOIN Countries c ON a.country_id = c.id
+    LEFT JOIN Awards aw ON e.id = aw.employee_id
+    LEFT JOIN Titles ti ON e.id = ti.employee_id;
+//
+CREATE VIEW Musicians_private_view
+AS
+    SELECT CONCAT(e.name, " ", e.surname, " ",  COALESCE(e.patronymic, "")) AS musician_name,
+           i.name AS musical_instruments,
+           ti.title_name,
+           e.salary, e.hire_date, e.birthday, aw.award_name, aw.competition_name, e.id
+    FROM Musicians m
+    JOIN Employees e ON m.id = e.id
+    LEFT JOIN Awards aw ON e.id = aw.employee_id
+    LEFT JOIN Titles ti ON e.id = ti.employee_id
+    LEFT JOIN Musicians_Instruments mi ON e.id = mi.musician_id
+    LEFT JOIN Instruments i ON mi.instrument_id = i.id;
+//
+CREATE VIEW Musicians_public_view
+AS
+    SELECT CONCAT(e.name, " ", e.surname, " ",  COALESCE(e.patronymic, "")) AS musician_name,
+           i.name AS musical_instruments,
+           ti.title_name, aw.award_name, aw.competition_name, e.id
+    FROM Musicians m
+    JOIN Employees e ON m.id = e.id
+    LEFT JOIN Awards aw ON e.id = aw.employee_id
+    LEFT JOIN Titles ti ON e.id = ti.employee_id
+    LEFT JOIN Musicians_Instruments mi ON e.id = mi.musician_id
+    LEFT JOIN Instruments i ON mi.instrument_id = i.id;
+//
+CREATE VIEW Producers_private_view
+AS
+    SELECT CONCAT(e.name, " ", e.surname, " ",  COALESCE(e.patronymic, "")) AS producer_name,
+           ti.title_name, aw.award_name,
+           e.salary, e.hire_date, e.birthday, aw.competition_name, e.id
+    FROM Producers p
+    JOIN Employees e ON p.id = e.id
+    LEFT JOIN Awards aw ON e.id = aw.employee_id
+    LEFT JOIN Titles ti ON e.id = ti.employee_id;
+//
+CREATE VIEW Producers_public_view
+AS
+    SELECT CONCAT(e.name, " ", e.surname, " ",  COALESCE(e.patronymic, "")) AS producer_name,
+           ti.title_name, aw.award_name, aw.competition_name, e.id
+    FROM Producers p
+    JOIN Employees e ON p.id = e.id
+    LEFT JOIN Awards aw ON e.id = aw.employee_id
+    LEFT JOIN Titles ti ON e.id = ti.employee_id;
+//
+CREATE VIEW Workers_private_view
+AS
+    SELECT CONCAT(e.name, " ", e.surname, " ",  COALESCE(e.patronymic, "")) AS worker_name,
+    e.salary, e.hire_date, e.birthday,
+    CONCAT(IF(a.id IS NULL, '', 'актёр '),
+           IF(m.id IS NULL, '', 'музыкант '),
+           IF(p.id IS NULL, '', 'продюссер'),
+           IF(p.id IS NULL AND m.id IS NULL AND a.id IS NULL, 'служащий', '')
+           ) AS title, e.id
+    FROM Employees e
+    LEFT JOIN Actors a ON e.id = a.id
+    LEFT JOIN Musicians m ON e.id = m.id
+    LEFT JOIN Producers p ON e.id = p.id;
+//
+CREATE VIEW Workers_public_view
+AS
+    SELECT CONCAT(e.name, " ", e.surname, " ",  COALESCE(e.patronymic, "")) AS worker_name,
+    CONCAT(IF(a.id IS NULL, '', 'актёр '),
+           IF(m.id IS NULL, '', 'музыкант '),
+           IF(p.id IS NULL, '', 'продюссер'),
+           IF(p.id IS NULL AND m.id IS NULL AND a.id IS NULL, 'служащий', '')
+           ) AS title, e.id
+    FROM Employees e
+    LEFT JOIN Actors a ON e.id = a.id
+    LEFT JOIN Musicians m ON e.id = m.id
+    LEFT JOIN Producers p ON e.id = p.id;
+//
+CREATE PROCEDURE CreateEmployee(
+    IN full_name VARCHAR(1024),
+    IN salary NUMERIC,
+    IN hire_date DATE,
+    IN birthday DATE,
+    OUT id INT
+    )
+BEGIN
+    INSERT INTO Employees(id, surname, name, patronymic, salary, hire_date, birthday)
+    VALUES
+    (
+    NULL,
+    SUBSTRING_INDEX(full_name, ' ', 1),
+    SUBSTRING_INDEX(SUBSTRING_INDEX(full_name, ' ', 2), ' ', -1),
+    SUBSTRING_INDEX(SUBSTRING_INDEX(full_name, ' ', 3), ' ', -1),
+    salary,
+    hire_date,
+    birthday
+    );
+    SELECT LAST_INSERT_ID() INTO id;
+END;
+//
+CREATE PROCEDURE InsertIntoProducers_private_view(
+    IN full_name VARCHAR(1024),
+    IN salary NUMERIC,
+    IN hire_date DATE,
+    IN birthday DATE
+    )
+BEGIN
+    DECLARE x INT;
+    CALL CreateEmployee(full_name, salary, hire_date, birthday, x);
+    INSERT INTO Producers() VALUES (x);
+END;
+//
+CREATE PROCEDURE InsertIntoMusicians_private_view(
+    IN full_name VARCHAR(1024),
+    IN salary NUMERIC,
+    IN hire_date DATE,
+    IN birthday DATE
+    )
+BEGIN
+    DECLARE x INT;
+    CALL CreateEmployee(full_name, salary, hire_date, birthday, x);
+    INSERT INTO Musicians() VALUES (x);
+END;
+//
+CREATE PROCEDURE InsertIntoActors_private_view(
+    IN full_name VARCHAR(1024),
+    IN salary NUMERIC,
+    IN hire_date DATE,
+    IN birthday DATE,
+    IN height INT,
+    IN weight INT,
+    IN voice ENUM('бас', 'баритон', 'тенор', 'альт', 'меццо-сопрано', 'сопрано'),
+    IN sex ENUM('мужской', 'женский'),
+    IN country_name VARCHAR(255)
+    )
+BEGIN
+    DECLARE id INT;
+    DECLARE country_id INT;
+
+    CALL CreateEmployee(full_name, salary, hire_date, birthday, id);
+
+    SELECT c.id INTO country_id FROM Countries c WHERE c.name = country_name;
+
+    INSERT INTO Actors(id, height, weight, voice, sex, country_id)
+    VALUES (id, height, weight, voice, sex, country_id);
+END;
+//
+CREATE PROCEDURE InsertIntoWorkers_private_view(
+    IN full_name VARCHAR(1024),
+    IN salary NUMERIC,
+    IN hire_date DATE,
+    IN birthday DATE
+    )
+BEGIN
+    DECLARE x INT;
+    CALL CreateEmployee(full_name, salary, hire_date, birthday, x);
+END;
+//
+CREATE ROLE IF NOT EXISTS 'director'
+//
+CREATE ROLE IF NOT EXISTS 'client'
+//
+GRANT SHOW DATABASES ON *.* TO 'client';
+//
+GRANT USAGE ON theatre.* TO 'client'
+//
+GRANT SELECT ON theatre.Repertoire_info_view TO 'client'
+//
+GRANT SELECT ON theatre.Musicians_public_view TO 'client'
+//
+GRANT SELECT ON theatre.Workers_public_view TO 'client'
+//
+GRANT SELECT ON theatre.Actors_public_view TO 'client'
+//
+GRANT SELECT ON theatre.Producers_public_view TO 'client'
+//
+GRANT EXECUTE ON PROCEDURE theatre.show_available_tickets TO 'client'
+//
+GRANT EXECUTE ON PROCEDURE theatre.buy_ticket TO 'client'
+//
+FLUSH PRIVILEGES;
 //
