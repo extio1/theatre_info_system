@@ -4,91 +4,94 @@ from tkinter import messagebox
 from tkinter import ttk
 
 from .interface import UserInterface
+from .gui_screens.client_main_menu import client_main_menu
+from .gui_screens.client_repertoire_menu import client_repertoire_menu
 
 
 class VisitorInterface(UserInterface):
     def __init__(self, root, connection, db_app):
         super().__init__(root, connection, db_app)
+        self.widgets = None
         self.employee_view = {'Продюссер': 'Producers_public_view',
                               'Актёр': 'Actors_public_view',
                               'Музыкант': 'Musicians_public_view',
                               }
-        self.employee_tree = None
+
+        self.performances = []
+        self.performance_names_list = []
+        self.current_performance = None
 
     def main_menu(self):
-        def get_performance_info():
-            def refresh_info(pp):
-                for widget in pp.winfo_children():
-                    widget.destroy()
+        def repertoire():
+            def refresh_info():
+                self.cursor.execute('SELECT * FROM Repertoire_info_view ORDER BY performance_date')
+                self.performances = self.cursor.fetchall()
+                self.performance_names_list = [str(p[2]) + ':' + str(p[1]) for p in self.performances]
+                self.current_performance = self.performances[0]
 
-                selected_show = shows[show_combobox.current()]
+            '''
+                performance:
+                    0: id (int)
+                    1: name (string)
+                    2: date (date)
+                    3: author (string)
+                    4: genre (string)
+            '''
 
-                self.cursor.execute("call show_available_tickets(" + str(selected_show[0]) + ")")
+            def refresh(a):
+                if self.widgets['listbox_repertoire'].curselection():
+                    selected_index = self.widgets['listbox_repertoire'].curselection()[0]
+                    self.current_performance = self.performances[selected_index]
+
+                self.widgets['name_info']['text'] = self.current_performance[1]
+                self.widgets['date_info']['text'] = self.current_performance[2]
+                self.widgets['author_info']['text'] = self.current_performance[3]
+                self.widgets['genre_info']['text'] = self.current_performance[4]
+
+                self.cursor.execute(
+                    "call show_available_tickets(" + str(self.current_performance[0]) + ")"
+                )
+
                 prices = self.cursor.fetchall()
-
-                pp.title("Информация о выступлении")
-                pp.geometry("800x300")
-                tk.Label(pp, text="Спектакль: \"" + selected_show[1] + "\"").grid(row=0, column=0)
-                tk.Label(pp, text="Дата: \"" + selected_show[2].strftime("%d/%m/%Y") + "\"").grid(row=1, column=0)
-                tk.Label(pp, text="Автор: \"" + selected_show[3] + "\"").grid(row=2, column=0)
-                tk.Label(pp, text="Жанр: \"" + selected_show[4] + "\"").grid(row=3, column=0)
-                tk.Label(pp, text="Место:").grid(row=4, column=0)
-                tk.Label(pp, text="Цена:").grid(row=4, column=1)
-                tk.Label(pp, text="Всего билетов:").grid(row=4, column=2)
-                tk.Label(pp, text="Свободно билетов:").grid(row=4, column=3)
-
-                place_box = ttk.Combobox(pp, values=[p[0] for p in prices])
-                place_box.grid(row=5 + len(prices), column=1)
-                amount_entry = tk.Entry(pp)
-                amount_entry.grid(row=5 + len(prices), column=2)
-
-                (tk.Button(
-                    pp,
-                    text='Купить',
-                    command=lambda p=place_box, a=amount_entry: buy_ticket(pp, selected_show[0], p, a)
-                ).grid(row=5 + len(prices), column=0))
-
                 for m in range(len(prices)):
-                    for k in range(0, len(prices[m])):
-                        tk.Label(pp, text=prices[m][k]).grid(row=5 + m, column=k)
+                    for k in range(1, len(prices[m])):
+                        widget_name = str(m + 1) + str(k) + "_info"
+                        self.widgets[widget_name]['text'] = prices[m][k]
 
                 try:
                     self.cursor.nextset()  # иначе command out of sync
                 except Error:
                     pass
 
-            def buy_ticket(pp, show_id, place_box, amount_entry):
+            def buy_ticket():
                 try:
-                    self.cursor.callproc('buy_ticket', [show_id, place_box.get(), amount_entry.get()])
-                    messagebox.showinfo("Покупка", "Операция прошла успешно", parent=pp)
+                    show_id = self.current_performance[0]
+                    place_name = self.widgets['combo_box_place'].get()
+                    amount = self.widgets['entry_n_tickets'].get()
+
+                    self.cursor.callproc('buy_ticket', [show_id, place_name, amount])
+
+                    messagebox.showinfo("Покупка",
+                                        "Операция прошла успешно. " +
+                                        "Было куплено " + str(amount) + " билетов в " +
+                                        str(place_name),
+                                        parent=self.root)
                     self.connection.commit()
-                    refresh_info(pp)
+
+                    refresh(None)
                 except errors.DatabaseError as err:
-                    if err.errno == errorcode.ER_SIGNAL_EXCEPTION:
-                        messagebox.showerror("Ошибка",
-                                             "Произошла ошибка:" + str(err),
-                                             parent=pp)
+                    messagebox.showerror("Ошибка",
+                                         "Произошла ошибка:" + str(err),
+                                         parent=self.root)
 
-            def search():
-                try:
-                    pp = tk.Toplevel(self.root)
-                    pp.geometry("800x300")
-                    refresh_info(pp)
-                except Error as e:
-                    messagebox.showerror("Ошибка", e.msg, parent=pp)
-
-            popup = tk.Toplevel(self.root)
-            popup.title("Информация о выступлении")
-            popup.geometry("400x200")
-
-            tk.Label(popup, text="Выберите название интерусующего выступления:").pack()
-            self.cursor.execute("SELECT * FROM Repertoire_info_view")
-            shows = self.cursor.fetchall()
-            show_combobox = ttk.Combobox(popup, values=[show[1] for show in shows])
-            show_combobox.pack()
-
-            tk.Button(popup, text="Поиск", command=search).pack()
-            tk.Button(popup, text="Выход", command=popup.destroy).pack()
+            refresh_info()
+            self.root, self.widgets = (
+                client_repertoire_menu(self.root,
+                                       buy_f=buy_ticket,
+                                       back_f=self.main_menu,
+                                       repertoire_options=self.performance_names_list,
+                                       repertoire_list_on_select=refresh)
+            )
 
         def get_employees_info():
             def refresh_employee_tree(e):
@@ -111,6 +114,7 @@ class VisitorInterface(UserInterface):
                     self.employee_tree.insert("", "end", values=row)
 
             self.clear_window()
+
             (tk.Button(self.root, text="В главное меню", command=self.main_menu)
              .grid(row=0, column=3))
 
@@ -120,12 +124,8 @@ class VisitorInterface(UserInterface):
 
         super().main_menu()
 
-        (tk.Label(self.root, text="Функции и процедуры")
-         .grid(row=1, column=0))
+        self.root, self.widgets = (
+            client_main_menu(self.root, repertoire, get_employees_info)
+        )
 
-        (tk.Button(self.root, text="Получить информацию о выступлении и купить билет",
-                   command=get_performance_info)
-         .grid(row=2, column=0))
-        (tk.Button(self.root, text="Актеры, музыканты и продюссеры театра",
-                   command=get_employees_info)
-         .grid(row=3, column=0))
+        self.root.mainloop()

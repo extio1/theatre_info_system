@@ -155,7 +155,9 @@ INSERT INTO Prices(show_id, name, price, amount) VALUES
 INSERT INTO Season_tickets(id, start_date, end_date, author_id, genre_id) VALUES
 (NULL, '2024-01-30', '2024-05-10', 1, NULL)
 //
-CREATE USER IF NOT EXISTS 'clt1'@'localhost' IDENTIFIED BY '123321' DEFAULT ROLE 'client'
+CREATE USER IF NOT EXISTS 'clt1'@'%' IDENTIFIED BY '123321' DEFAULT ROLE 'client'
+//
+CREATE USER IF NOT EXISTS 'dir1'@'%' IDENTIFIED BY '123321' DEFAULT ROLE 'director'
 //
 FLUSH PRIVILEGES;
 //

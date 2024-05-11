@@ -479,7 +479,35 @@ CREATE ROLE IF NOT EXISTS 'director'
 //
 CREATE ROLE IF NOT EXISTS 'client'
 //
-GRANT SHOW DATABASES ON *.* TO 'client';
+FLUSH PRIVILEGES;
+//
+GRANT SHOW DATABASES ON *.* TO 'director'
+//
+GRANT USAGE ON theatre.* TO 'director'
+//
+GRANT EXECUTE ON FUNCTION theatre.get_current_repertoire_income TO 'director'
+//
+GRANT SELECT ON theatre.Musicians_private_view TO 'director'
+//
+GRANT SELECT ON theatre.Workers_private_view TO 'director'
+//
+GRANT SELECT ON theatre.Actors_private_view TO 'director'
+//
+GRANT SELECT ON theatre.Producers_private_view TO 'director'
+//
+GRANT EXECUTE ON PROCEDURE theatre.InsertIntoMusicians_private_view TO 'director'
+//
+GRANT EXECUTE ON PROCEDURE theatre.InsertIntoActors_private_view TO 'director'
+//
+GRANT EXECUTE ON PROCEDURE theatre.InsertIntoProducers_private_view TO 'director'
+//
+GRANT EXECUTE ON PROCEDURE theatre.InsertIntoWorkers_private_view TO 'director'
+//
+GRANT DELETE ON TABLE theatre.Employees TO 'director'
+//
+FLUSH PRIVILEGES;
+//
+GRANT SHOW DATABASES ON *.* TO 'client'
 //
 GRANT USAGE ON theatre.* TO 'client'
 //

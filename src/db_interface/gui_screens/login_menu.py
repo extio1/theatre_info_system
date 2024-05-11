@@ -16,7 +16,7 @@ def login_menu(window, login_button_f):
     widgets = {}
 
     def relative_to_assets(path: str) -> str:
-        return executable_directory+"/assets/frame0/"+path
+        return executable_directory+"/assets/login_menu/"+path
 
     window.geometry("800x600")
     window.configure(bg="#FFFFFF")

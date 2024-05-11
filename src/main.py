@@ -8,14 +8,16 @@ from db_interface.client import VisitorInterface
 from db_interface.director import DirectorInterface
 from db_interface.admin import AdministratorInterface
 
-
-view_class = {'`client`@`%`': VisitorInterface,
-              '`director`@`%`': DirectorInterface
-              }
+role_interface = {'`client`@`%`': VisitorInterface,
+                  '`director`@`%`': DirectorInterface
+                  }
 
 
 class DatabaseApp:
     def __init__(self):
+        self.password_entry = None
+        self.host_entry = None
+        self.login_entry = None
         self.cursor = None
         self.user_interface = None
         self.root = tk.Tk()
@@ -40,10 +42,9 @@ class DatabaseApp:
             self.connection = connect(host=host, user=login, password=password)
             self.cursor = self.connection.cursor()
             self.cursor.execute("USE " + config["database"])
+            self.create_view(login)
         except Error as e:
             messagebox.showerror("Ошибка во время авторизации", e.msg)
-
-        self.create_view(login)
 
     def create_view(self, login):
         if login == 'root':
@@ -52,8 +53,9 @@ class DatabaseApp:
             try:
                 self.cursor = self.connection.cursor()
                 self.cursor.execute("SELECT CURRENT_ROLE()")
+                current_role = self.cursor.fetchall()[0][0]
 
-                view_class[self.cursor.fetchall()[0][0]](self.root, self.connection, self)
+                role_interface[current_role](self.root, self.connection, self)
             except Error as e:
                 messagebox.showerror("Ошибка во время авторизации", e.msg)
 
