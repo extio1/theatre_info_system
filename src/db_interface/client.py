@@ -9,8 +9,8 @@ from .gui_screens.client_repertoire_menu import client_repertoire_menu
 
 
 class VisitorInterface(UserInterface):
-    def __init__(self, root, connection, db_app):
-        super().__init__(root, connection, db_app)
+    def __init__(self, root, connection, login, db_app):
+        super().__init__(root, connection, login, db_app)
         self.widgets = None
         self.employee_view = {'Продюссер': 'Producers_public_view',
                               'Актёр': 'Actors_public_view',
@@ -20,6 +20,8 @@ class VisitorInterface(UserInterface):
         self.performances = []
         self.performance_names_list = []
         self.current_performance = None
+
+        self.main_menu()
 
     def main_menu(self):
         def repertoire():
@@ -93,39 +95,10 @@ class VisitorInterface(UserInterface):
                                        repertoire_list_on_select=refresh)
             )
 
-        def get_employees_info():
-            def refresh_employee_tree(e):
-                if self.employee_tree:
-                    self.employee_tree.destroy()
-
-                employee_type = employee_box.get()
-                self.cursor.execute("SHOW COLUMNS FROM " + self.employee_view[employee_type])
-                view_columns = self.cursor.fetchall()
-
-                self.employee_tree = ttk.Treeview(self.root, columns=[c[0] for c in view_columns], show="headings")
-
-                for c in view_columns:
-                    self.employee_tree.heading(c[0], text=c[0])
-                self.employee_tree.grid(row=2, column=0, columnspan=len(view_columns))
-
-                self.cursor.execute("SELECT * FROM " + self.employee_view[employee_type])
-                data_employees = self.cursor.fetchall()
-                for row in data_employees:
-                    self.employee_tree.insert("", "end", values=row)
-
-            self.clear_window()
-
-            (tk.Button(self.root, text="В главное меню", command=self.main_menu)
-             .grid(row=0, column=3))
-
-            employee_box = ttk.Combobox(self.root, values=list(self.employee_view.keys()))
-            employee_box.bind("<<ComboboxSelected>>", refresh_employee_tree)
-            employee_box.grid(row=1, column=0)
-
         super().main_menu()
 
         self.root, self.widgets = (
-            client_main_menu(self.root, repertoire, get_employees_info)
+            client_main_menu(self.root, repertoire, self.db_app.auth_stage)
         )
 
         self.root.mainloop()

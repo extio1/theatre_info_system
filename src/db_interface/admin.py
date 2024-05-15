@@ -7,11 +7,13 @@ from config import config
 
 
 class AdministratorInterface(UserInterface):
-    def __init__(self, root, connection, db_app):
-        super().__init__(root, connection, db_app)
+    def __init__(self, root, connection, login, db_app):
+        super().__init__(root, connection, login, db_app)
         self.root.resizable(True, True)
         self.MIGRATE_SCRIPT_PATH = "script/migrate/migrate.sql"
         self.SAMPLE_SCRIPT_PATH = "script/sample/1.sql"
+
+        self.main_menu()
 
     def main_menu(self):
         def migrate():
@@ -48,12 +50,44 @@ class AdministratorInterface(UserInterface):
             except Error as e:
                 messagebox.showerror(message=e.msg)
 
+        def drop_roles_users():
+            from mysql.connector import Error
+            try:
+                with self.connection.cursor() as cursor:
+                    cursor.execute('SELECT DISTINCT from_user, from_host FROM mysql.role_edges')
+                    roles = cursor.fetchall()
+
+                    for role in roles:
+                        cursor.execute("SELECT DISTINCT to_user, to_host FROM mysql.role_edges WHERE " +
+                                       "from_user='" + role[0] + "' AND " + "from_host='" + role[1] + "'")
+
+                        users = cursor.fetchall()
+                        for user in users:
+                            cursor.execute("DROP USER '" + user[0] + "'@'" + user[1] + "'")
+
+                        cursor.execute("DROP ROLE '" + role[0] + "'@'" + role[1] + "'")
+
+                    messagebox.showinfo(title="Success", message="Success")
+            except Error as e:
+                messagebox.showerror(message=e.msg)
+
         super().main_menu()
 
         (tk.Label(self.root, text="Выберите таблицу для взаимодействия")
          .grid(row=0, column=1, padx=5, pady=5))
         (tk.Button(self.root, text="Вернутся на страницу авторизации", command=self.db_app.auth_stage)
          .grid(row=0, column=0, padx=5, pady=5))
+
+        (tk.Label(self.root, text="Функции и процедуры")
+         .grid(row=1, column=0))
+        (tk.Label(self.root, text="Управление базой данных")
+         .grid(row=3, column=0))
+        (tk.Button(self.root, text="Удалить всё и выполнить миграцию", command=migrate)
+         .grid(row=4, column=0))
+        (tk.Button(self.root, text="Заполнить тестовыми данными", command=fill)
+         .grid(row=4, column=1))
+        (tk.Button(self.root, text="Сбросить роли и пользователей", command=drop_roles_users)
+         .grid(row=5, column=1))
 
         self.cursor.execute("SHOW tables")
         tables = []
@@ -62,19 +96,9 @@ class AdministratorInterface(UserInterface):
             tables.append(table)
 
         N_COLS = 3
-        N_ROWS = len(tables) // N_COLS + 1
         for i in range(len(tables)):
             (tk.Button(self.root, text=tables[i], command=lambda name=tables[i][0]: self.table_menu(name))
-             .grid(row=i // N_COLS + 1, column=i % N_COLS, padx=5, pady=5))
-
-        (tk.Label(self.root, text="Функции и процедуры")
-         .grid(row=N_ROWS + 1, column=0))
-        (tk.Label(self.root, text="Управление базой данных")
-         .grid(row=N_ROWS + 3, column=0))
-        (tk.Button(self.root, text="Удалить всё и выполнить миграцию", command=migrate)
-         .grid(row=N_ROWS + 4, column=0))
-        (tk.Button(self.root, text="Заполнить тестовыми данными", command=fill)
-         .grid(row=N_ROWS + 4, column=1))
+             .grid(row=i // N_COLS + 1 + 6, column=i % N_COLS, padx=5, pady=5))
 
     def table_menu(self, table_name):
         def refresh_table_data():

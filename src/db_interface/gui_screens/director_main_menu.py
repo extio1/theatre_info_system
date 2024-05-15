@@ -10,20 +10,20 @@ from tkinter import Tk, Canvas, Entry, Text, Button, PhotoImage
 import os
 
 
-def client_main_menu(window, menu_repertoire_f, login_f):
+def director_main_menu(window, money_f, login_f, employees_f):
     executable_path = os.path.abspath(__file__)
     executable_directory = os.path.dirname(executable_path)
     widgets = {}
 
     def relative_to_assets(path: str) -> Path:
-        return executable_directory + "/assets/client_main_menu/" + path
+        return executable_directory + "/assets/director_main_menu/" + path
 
     window.geometry("800x600")
-    window.configure(bg="#AE7043")
+    window.configure(bg="#67B293")
 
     canvas = Canvas(
         window,
-        bg="#AE7043",
+        bg="#67B293",
         height=600,
         width=800,
         bd=0,
@@ -48,11 +48,11 @@ def client_main_menu(window, menu_repertoire_f, login_f):
         image=button_image_1,
         borderwidth=0,
         highlightthickness=0,
-        command=menu_repertoire_f,
+        command=employees_f,
         relief="flat"
     )
     button_1.place(
-        x=313.0,
+        x=520.0,
         y=212.0,
         width=174.0,
         height=176.0
@@ -66,17 +66,35 @@ def client_main_menu(window, menu_repertoire_f, login_f):
         image=button_image_2,
         borderwidth=0,
         highlightthickness=0,
-        command=login_f,
+        command=money_f,
         relief="flat"
     )
     button_2.place(
-        x=654.0,
-        y=21.0,
-        width=124.0,
-        height=54.0
+        x=113.0,
+        y=212.0,
+        width=174.0,
+        height=176.0
     )
     widgets['button_image_2'] = button_image_2
     widgets['button_2'] = button_2
+
+    button_image_3 = PhotoImage(
+        file=relative_to_assets("button_3.png"))
+    button_3 = Button(
+        image=button_image_3,
+        borderwidth=0,
+        highlightthickness=0,
+        command=login_f,
+        relief="flat"
+    )
+    button_3.place(
+        x=19.0,
+        y=22.0,
+        width=124.0,
+        height=54.0
+    )
+    widgets['button_image_3'] = button_image_3
+    widgets['button_3'] = button_3
 
     window.resizable(False, False)
 

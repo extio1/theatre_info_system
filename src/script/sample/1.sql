@@ -126,6 +126,14 @@ INSERT INTO Repertoire(id, performance_id, performance_date) VALUES
 (NULL, 6, '2024-04-11'),
 (NULL, 7, '2024-05-10')
 //
+INSERT INTO Roles(id, actor_id, show_id, name, type) VALUES
+(NULL, 1, 1, 'Тишка', 'основная'),
+(NULL, 3, 1, 'Тишка', 'дублёр'),
+(NULL, 5, 4, 'Михаил Иванов Костылёв', 'основная'),
+(NULL, 6, 4, 'Васька Пепел', 'основная'),
+(NULL, 5, 2, 'Борис Григорьевич', 'основная'),
+(NULL, 7, 2, 'Тихон Иваныч Кабанов', 'основная')
+//
 INSERT INTO Prices(show_id, name, price, amount) VALUES
 (1, 'партер', 4500, 50),
 (1, 'высокий партер', 4800, 40),
@@ -159,5 +167,22 @@ CREATE USER IF NOT EXISTS 'clt1'@'%' IDENTIFIED BY '123321' DEFAULT ROLE 'client
 //
 CREATE USER IF NOT EXISTS 'dir1'@'%' IDENTIFIED BY '123321' DEFAULT ROLE 'director'
 //
-FLUSH PRIVILEGES;
+CREATE USER IF NOT EXISTS 'act1'@'%' IDENTIFIED BY '123321' DEFAULT ROLE 'actor'
+//
+CREATE USER IF NOT EXISTS 'act2'@'%' IDENTIFIED BY '123321' DEFAULT ROLE 'actor'
+//
+CREATE USER IF NOT EXISTS 'act3'@'%' IDENTIFIED BY '123321' DEFAULT ROLE 'actor'
+//
+CREATE USER IF NOT EXISTS 'act4'@'%' IDENTIFIED BY '123321' DEFAULT ROLE 'actor'
+//
+CREATE USER IF NOT EXISTS 'act5'@'%' IDENTIFIED BY '123321' DEFAULT ROLE 'actor'
+//
+FLUSH PRIVILEGES
+//
+INSERT INTO Employee_login(employee_id, login) VALUES
+(1, 'act1'),
+(3, 'act2'),
+(5, 'act3'),
+(6, 'act4'),
+(7, 'act5')
 //

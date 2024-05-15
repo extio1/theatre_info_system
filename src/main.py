@@ -7,9 +7,11 @@ from db_interface.gui_screens.login_menu import login_menu
 from db_interface.client import VisitorInterface
 from db_interface.director import DirectorInterface
 from db_interface.admin import AdministratorInterface
+from db_interface.actor import ActorInterface
 
 role_interface = {'`client`@`%`': VisitorInterface,
-                  '`director`@`%`': DirectorInterface
+                  '`director`@`%`': DirectorInterface,
+                  '`actor`@`%`': ActorInterface
                   }
 
 
@@ -40,22 +42,21 @@ class DatabaseApp:
 
         try:
             self.connection = connect(host=host, user=login, password=password)
-            self.cursor = self.connection.cursor()
-            self.cursor.execute("USE " + config["database"])
             self.create_view(login)
         except Error as e:
             messagebox.showerror("Ошибка во время авторизации", e.msg)
 
     def create_view(self, login):
         if login == 'root':
-            AdministratorInterface(self.root, self.connection, self)
+            AdministratorInterface(self.root, self.connection, login, self)
         else:
             try:
                 self.cursor = self.connection.cursor()
+                self.cursor.execute("USE " + config['database'])
                 self.cursor.execute("SELECT CURRENT_ROLE()")
                 current_role = self.cursor.fetchall()[0][0]
 
-                role_interface[current_role](self.root, self.connection, self)
+                role_interface[current_role](self.root, self.connection, login, self)
             except Error as e:
                 messagebox.showerror("Ошибка во время авторизации", e.msg)
 
