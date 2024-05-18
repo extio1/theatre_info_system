@@ -11,6 +11,7 @@ from tkinter import ttk
 
 import datetime
 
+
 def director_employees_menu(window, main_menu_f, employee_info_f,
                             fire_employee_f, hire_employee_f,
                             employee_list_on_select_f,

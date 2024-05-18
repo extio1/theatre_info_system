@@ -72,14 +72,9 @@ class AdministratorInterface(UserInterface):
                 messagebox.showerror(message=e.msg)
 
         super().main_menu()
-
-        (tk.Label(self.root, text="Выберите таблицу для взаимодействия")
-         .grid(row=0, column=1, padx=5, pady=5))
-        (tk.Button(self.root, text="Вернутся на страницу авторизации", command=self.db_app.auth_stage)
+        (tk.Button(self.root, text="Вернуться на страницу авторизации", command=self.db_app.auth_stage)
          .grid(row=0, column=0, padx=5, pady=5))
 
-        (tk.Label(self.root, text="Функции и процедуры")
-         .grid(row=1, column=0))
         (tk.Label(self.root, text="Управление базой данных")
          .grid(row=3, column=0))
         (tk.Button(self.root, text="Удалить всё и выполнить миграцию", command=migrate)
@@ -89,6 +84,9 @@ class AdministratorInterface(UserInterface):
         (tk.Button(self.root, text="Сбросить роли и пользователей", command=drop_roles_users)
          .grid(row=5, column=1))
 
+        (tk.Label(self.root, text="Выберите таблицу для взаимодействия")
+         .grid(row=7, column=0, padx=5, pady=5))
+
         self.cursor.execute("SHOW tables")
         tables = []
 
@@ -96,9 +94,10 @@ class AdministratorInterface(UserInterface):
             tables.append(table)
 
         N_COLS = 3
+        START_ROW = 8
         for i in range(len(tables)):
             (tk.Button(self.root, text=tables[i], command=lambda name=tables[i][0]: self.table_menu(name))
-             .grid(row=i // N_COLS + 1 + 6, column=i % N_COLS, padx=5, pady=5))
+             .grid(row=i // N_COLS + 1 + START_ROW, column=i % N_COLS, padx=5, pady=5))
 
     def table_menu(self, table_name):
         def refresh_table_data():

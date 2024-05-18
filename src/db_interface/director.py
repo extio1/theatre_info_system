@@ -40,6 +40,7 @@ class DirectorInterface(UserInterface):
     def main_menu(self):
         def get_repertoire_income():
             try:
+                self.connection.commit()
                 self.cursor.execute("select get_current_repertoire_income()")
                 data = self.cursor.fetchall()
                 messagebox.showinfo(title="Доход", message=data)
@@ -77,21 +78,22 @@ class DirectorInterface(UserInterface):
                         [name, surname, patronymic, salary, birthday, hire_date]
                     )
 
-                    self.cursor.execute(
-                        "SELECT LAST_INSERT_ID()"
-                    )
+                    if login:  # if director wants to create user for employee
+                        self.cursor.execute(
+                            "SELECT LAST_INSERT_ID()"
+                        )
 
-                    id_inserted = str(self.cursor.fetchall()[0][0])
+                        id_inserted = str(self.cursor.fetchall()[0][0])
 
-                    self.cursor.execute(
-                        "CREATE USER IF NOT EXISTS '" + login + "'@'%' IDENTIFIED BY '"
-                        + password + "' DEFAULT ROLE '" + self.employee_role[self.curr_employee_type] + "'"
-                    )
+                        self.cursor.execute(
+                            "CREATE USER IF NOT EXISTS '" + login + "'@'%' IDENTIFIED BY '"
+                            + password + "' DEFAULT ROLE '" + self.employee_role[self.curr_employee_type] + "'"
+                        )
 
-                    self.cursor.execute(
-                        "INSERT INTO Employee_login(employee_id, login) VALUES (" +
-                        id_inserted + ", '" + login + "')"
-                    )
+                        self.cursor.execute(
+                            "INSERT INTO Employee_login(employee_id, login) VALUES (" +
+                            id_inserted + ", '" + login + "')"
+                        )
 
                     self.connection.commit()
 

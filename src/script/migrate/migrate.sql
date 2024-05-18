@@ -424,7 +424,7 @@ AS
            IF(m.id IS NULL, '', 'музыкант '),
            IF(p.id IS NULL, '', 'продюссер'),
            IF(p.id IS NULL AND m.id IS NULL AND a.id IS NULL, 'служащий', '')
-           ) AS title, e.id
+           ) AS title, e.id as id
     FROM Employees e
     LEFT JOIN Actors a ON e.id = a.id
     LEFT JOIN Musicians m ON e.id = m.id
@@ -595,6 +595,8 @@ GRANT SELECT ON theatre.Roles TO 'actor'
 GRANT EXECUTE ON FUNCTION theatre.get_my_employee_id TO 'actor'
 //
 GRANT SELECT ON theatre.Roles_view TO 'actor'
+//
+GRANT SELECT ON theatre.Workers_public_view TO 'actor'
 //
 FLUSH PRIVILEGES
 //

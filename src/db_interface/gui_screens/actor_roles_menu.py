@@ -9,7 +9,7 @@ from tkinter import Tk, Canvas, Entry, Text, Button, PhotoImage
 import os
 
 
-def actor_roles_menu(window, login_f, role_list):
+def actor_roles_menu(window, login_f, role_list, name):
     executable_path = os.path.abspath(__file__)
     executable_directory = os.path.dirname(executable_path)
     widgets = {}
@@ -58,12 +58,25 @@ def actor_roles_menu(window, login_f, role_list):
         outline="")
 
     canvas.create_text(
-        360.0,
-        70.0,
+        196.0,
+        30.0,
         anchor="nw",
-        text="Мои роли",
+        text="Здравствуйте!",
         fill="#FFFFFF",
-        font=("Inder Regular", 40 * -1)
+        font=("Inder Regular", 20 * -1)
+    )
+
+    t = tkinter.Label(window, text=name)
+    t.place(x=196.0, y=60.0)
+    widgets['label_name'] = t
+
+    canvas.create_text(
+        360.0,
+        130.0,
+        anchor="nw",
+        text="Текущие роли",
+        fill="#FFFFFF",
+        font=("Inder Regular", 20 * -1)
     )
 
     button_image_1 = PhotoImage(

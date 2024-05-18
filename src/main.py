@@ -17,6 +17,7 @@ role_interface = {'`client`@`%`': VisitorInterface,
 
 class DatabaseApp:
     def __init__(self):
+        self.port_entry = None
         self.password_entry = None
         self.host_entry = None
         self.login_entry = None
@@ -29,30 +30,33 @@ class DatabaseApp:
 
     def auth_stage(self):
         self.root, widgets = login_menu(self.root, self.auth_to_database)
-        self.login_entry = widgets['entry_1']
-        self.host_entry = widgets['entry_2']
-        self.password_entry = widgets['entry_3']
+        self.host_entry = widgets['entry_1']
+        self.port_entry = widgets['entry_2']
+        self.login_entry = widgets['entry_3']
+        self.password_entry = widgets['entry_4']
 
         self.root.mainloop()
 
     def auth_to_database(self):
         host = self.host_entry.get()
+        port = int(self.port_entry.get())
         login = self.login_entry.get()
         password = self.password_entry.get()
 
         try:
-            self.connection = connect(host=host, user=login, password=password)
+            self.connection = connect(host=host, port=port, user=login, password=password)
             self.create_view(login)
         except Error as e:
             messagebox.showerror("Ошибка во время авторизации", e.msg)
 
     def create_view(self, login):
+        self.cursor = self.connection.cursor()
+        self.cursor.execute("USE " + config['database'])
+
         if login == 'root':
             AdministratorInterface(self.root, self.connection, login, self)
         else:
             try:
-                self.cursor = self.connection.cursor()
-                self.cursor.execute("USE " + config['database'])
                 self.cursor.execute("SELECT CURRENT_ROLE()")
                 current_role = self.cursor.fetchall()[0][0]
 

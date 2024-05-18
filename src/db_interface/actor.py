@@ -19,7 +19,11 @@ class ActorInterface(UserInterface):
 
         self.cursor.execute("SELECT get_my_employee_id('"+self.user_login+"')")
         actor_id = self.cursor.fetchall()[0][0]
-        print(actor_id)
+
+        self.cursor.execute(
+            "SELECT name FROM Workers_public_view WHERE id="+str(actor_id)
+        )
+        name = self.cursor.fetchall()[0][0]
 
         self.cursor.execute(
             "SELECT performance_name, performance_date, role_name, type FROM Roles_view "+
@@ -33,7 +37,7 @@ class ActorInterface(UserInterface):
             roles.append(', '.join(t))
 
         self.root, self.widgets = (
-            actor_roles_menu(self.root, self.db_app.auth_stage, roles)
+            actor_roles_menu(self.root, self.db_app.auth_stage, roles, name)
         )
 
         self.root.mainloop()
