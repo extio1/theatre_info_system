@@ -75,7 +75,7 @@ class DirectorInterface(UserInterface):
                 try:
                     self.cursor.callproc(
                         "InsertInto" + self.employee_view[self.curr_employee_type],
-                        [name, surname, patronymic, salary, birthday, hire_date]
+                        [name, surname, patronymic, salary, hire_date, birthday]
                     )
 
                     if login:  # if director wants to create user for employee
