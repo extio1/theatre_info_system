@@ -1,0 +1,2 @@
+tk==0.1.0
+mysql-connector-python==8.3.0
