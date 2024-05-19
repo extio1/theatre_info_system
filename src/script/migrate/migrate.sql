@@ -590,8 +590,6 @@ FLUSH PRIVILEGES
 //
 GRANT USAGE ON theatre.* TO 'actor'
 //
-GRANT SELECT ON theatre.Roles TO 'actor'
-//
 GRANT EXECUTE ON FUNCTION theatre.get_my_employee_id TO 'actor'
 //
 GRANT SELECT ON theatre.Roles_view TO 'actor'
