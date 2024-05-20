@@ -43,6 +43,9 @@ class DatabaseApp:
         login = self.login_entry.get()
         password = self.password_entry.get()
 
+        if self.connection and self.connection.is_connected():
+            self.connection.close()
+
         try:
             self.connection = connect(host=host, port=port, user=login, password=password)
             self.create_view(login)
