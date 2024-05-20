@@ -13,6 +13,8 @@ class AdministratorInterface(UserInterface):
         self.MIGRATE_SCRIPT_PATH = "script/migrate/migrate.sql"
         self.SAMPLE_SCRIPT_PATH = "script/sample/1.sql"
 
+        self.my_db_roles = ['client', 'actor', 'director', 'worker', 'producer', 'musician']
+
         self.main_menu()
 
     def main_menu(self):
@@ -24,7 +26,7 @@ class AdministratorInterface(UserInterface):
                     cursor.execute("CREATE DATABASE " + config["database"])
                     cursor.execute("USE " + config["database"])
 
-                    with open(self.MIGRATE_SCRIPT_PATH, "r") as f:
+                    with open(self.MIGRATE_SCRIPT_PATH, "r", encoding="utf-8") as f:
                         for create_table_query in f.read().split('//'):
                             print(create_table_query)
                             if len(create_table_query) > len("CREATE"):
@@ -39,7 +41,7 @@ class AdministratorInterface(UserInterface):
             from mysql.connector import Error
             try:
                 with self.connection.cursor() as cursor:
-                    with open(self.SAMPLE_SCRIPT_PATH, "r") as f:
+                    with open(self.SAMPLE_SCRIPT_PATH, "r", encoding="utf-8") as f:
                         for insert_table_query in f.read().split('//'):
                             if len(insert_table_query) > len("INSERT"):
                                 print(insert_table_query)
@@ -58,14 +60,20 @@ class AdministratorInterface(UserInterface):
                     roles = cursor.fetchall()
 
                     for role in roles:
-                        cursor.execute("SELECT DISTINCT to_user, to_host FROM mysql.role_edges WHERE " +
-                                       "from_user='" + role[0] + "' AND " + "from_host='" + role[1] + "'")
+                        name = role[0]
+                        host = role[1]
 
-                        users = cursor.fetchall()
-                        for user in users:
-                            cursor.execute("DROP USER '" + user[0] + "'@'" + user[1] + "'")
+                        if name in self.my_db_roles:
+                            print("DELETING ROLE", name)
+                            cursor.execute("SELECT DISTINCT to_user, to_host FROM mysql.role_edges WHERE " +
+                                           "from_user='" + name + "' AND " + "from_host='" + host + "'")
 
-                        cursor.execute("DROP ROLE '" + role[0] + "'@'" + role[1] + "'")
+                            users = cursor.fetchall()
+                            for user in users:
+                                print("DROP USER", user[0], user[1])
+                                cursor.execute("DROP USER IF EXISTS '" + user[0] + "'@'" + user[1] + "'")
+
+                            cursor.execute("DROP ROLE IF EXISTS '" + name + "'@'" + host + "'")
 
                     messagebox.showinfo(title="Success", message="Success")
             except Error as e:
