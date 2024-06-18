@@ -1,3 +1,9 @@
+# Overview
+The aim of the project is to get experience of database designing.      
+Subject area is theatre.     
+There are proccesses of tickets buying, employee management (hire, fire) is designed. Simple GUI is done by tkinter.     
+DBMS - MySQL: tables, triggers, procedures, functions, views are used.  
+
 # Requirements
 1. mysql 8.0
 2. python 3
