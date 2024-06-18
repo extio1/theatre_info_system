@@ -6,7 +6,8 @@ DBMS - MySQL: tables, triggers, procedures, functions, views are used.
 
 # Requirements
 1. mysql 8.0
-2. python 3
+2. python 3.11
+3. mysql-connector-python >= 8.3.0
 
 # Usage
 ```shell
